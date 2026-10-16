@@ -41,4 +41,59 @@
                 <th>Endereço de Entrega</th>
                 <th>Pagamento</th>
                 <th>Total</th>
-                <th>Data do Ped
+                <th>Data do Pedido</th>
+            </tr>
+        </thead>
+        <tbody id="orders-table-body">
+            <tr><td colspan="5" class="loading">Conectando ao banco de dados Supabase...</td></tr>
+        </tbody>
+    </table>
+
+    <script>
+        // ==================== CONFIGURAÇÃO SUPABASE ====================
+        const SUPABASE_URL = 'https://yepeksvpqmjusfrhdfzm.supabase.co';
+        // Usando a chave ANON (segura). As políticas RLS do Supabase permitem o select.
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InllcGVrc3ZwcW1qdXNmcmhkZnptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIxMjQ2NDQsImV4cCI6MjEwNzcwMDY0NH0.5A9FSO32dMpm9dCXSrq9ynGiEZXZvXKDlcW4cfNN5DI';
+
+        const { createClient } = supabase;
+        const _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        async function loadAdminDataFromSupabase() {
+            const tbody = document.getElementById('orders-table-body');
+            tbody.innerHTML = `<tr><td colspan="5" class="loading">Carregando...</td></tr>`;
+
+            const { data: orders, error } = await _supabase
+                .from('orders')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                console.error('Erro ao buscar dados:', error);
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #ff6b6b;">Erro: ${error.message}</td></tr>`;
+                return;
+            }
+
+            document.getElementById('total-orders').innerText = orders.length;
+            const rev = orders.reduce((sum, o) => sum + Number(o.total), 0);
+            document.getElementById('total-revenue').innerText = `R$ ${rev.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+
+            if (orders.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #9ca3af;">Nenhum pedido registrado ainda.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = orders.map(o => `
+                <tr>
+                    <td>${o.client}</td>
+                    <td>${o.address}</td>
+                    <td>${o.payment}</td>
+                    <td>R$ ${Number(o.total).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                    <td>${new Date(o.created_at).toLocaleString('pt-BR')}</td>
+                </tr>
+            `).join('');
+        }
+
+        window.onload = loadAdminDataFromSupabase;
+    </script>
+</body>
+</html>
