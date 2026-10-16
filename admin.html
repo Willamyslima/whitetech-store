@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WhiteTech - Painel Administrativo & Estoque (Supabase)</title>
+    <title>WhiteTech - Painel Administrativo</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
-    <!-- Importando o cliente do Supabase via CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body { font-family: 'Montserrat', sans-serif; background: #0b0f19; color: #f3f4f6; padding: 30px; }
@@ -18,27 +17,22 @@
         th, td { padding: 15px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
         th { background: #121826; color: #d4af37; }
         .loading { text-align: center; color: #9ca3af; padding: 20px; }
+        .refresh-btn { background: #d4af37; color: #0b0f19; border: none; padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; margin-bottom: 20px; }
+        .refresh-btn:hover { background: #b3922b; }
     </style>
 </head>
 <body>
     <h1>Painel de Controle — WhiteTech Admin</h1>
-    
+
     <div class="stats-grid">
-        <div class="stat-card">
-            <h3>Total de Pedidos</h3>
-            <p id="total-orders">-</p>
-        </div>
-        <div class="stat-card">
-            <h3>Faturamento Estimado</h3>
-            <p id="total-revenue">R$ 0,00</p>
-        </div>
-        <div class="stat-card">
-            <h3>Itens no Catálogo</h3>
-            <p>6</p>
-        </div>
+        <div class="stat-card"><h3>Total de Pedidos</h3><p id="total-orders">-</p></div>
+        <div class="stat-card"><h3>Faturamento Estimado</h3><p id="total-revenue">R$ 0,00</p></div>
+        <div class="stat-card"><h3>Itens no Catálogo</h3><p>6</p></div>
     </div>
 
-    <h2>Últimos Pedidos & Endereços de Entrega (Tempo Real)</h2>
+    <button class="refresh-btn" onclick="loadAdminDataFromSupabase()">🔄 Atualizar Dados</button>
+
+    <h2>Últimos Pedidos & Endereços de Entrega</h2>
     <br>
     <table>
         <thead>
@@ -47,60 +41,4 @@
                 <th>Endereço de Entrega</th>
                 <th>Pagamento</th>
                 <th>Total</th>
-                <th>Data do Pedido</th>
-            </tr>
-        </thead>
-        <tbody id="orders-table-body">
-            <tr><td colspan="5" class="loading">Conectando ao banco de dados Supabase...</td></tr>
-        </tbody>
-    </table>
-
-    <script>
-        // CONFIGURAÇÃO DO SUPABASE (Substitua pelos seus dados do painel do Supabase)
-        const SUPABASE_URL = 'sb_publishable_2NENFx2b29zFomb3zBgAEg_0M8MfGy-';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InllcGVrc3ZwcW1qdXNmcmhkZnptIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MjEyNDY0NCwiZXhwIjoyMTA3NzAwNjQ0fQ.4Zwin6mI_8OB7fGAf8Ku6QWPsPnHreLI8g-H6MeB5jA';
-
-        const { createClient } = supabase;
-        const _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-        async function loadAdminDataFromSupabase() {
-            const tbody = document.getElementById('orders-table-body');
-            
-            // Busca os dados da tabela 'orders' ordenada pelos mais recentes
-            const { data: orders, error } = await _supabase
-                .from('orders')
-                .select('*')
-                .order('created_at', { ascending: false });
-
-            if (error) {
-                console.error('Erro ao buscar dados:', error);
-                tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #ff6b6b;">Erro ao carregar dados do banco. Verifique suas credenciais.</td></tr>`;
-                return;
-            }
-
-            document.getElementById('total-orders').innerText = orders.length;
-
-            let rev = orders.reduce((sum, o) => sum + Number(o.total), 0);
-            document.getElementById('total-revenue').innerText = `R$ ${rev.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
-
-            if (orders.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #9ca3af;">Nenhum pedido registrado no banco de dados.</td></tr>`;
-                return;
-            }
-
-            tbody.innerHTML = orders.map(o => `
-                <tr>
-                    <td>${o.client}</td>
-                    <td>${o.address}</td>
-                    <td>${o.payment}</td>
-                    <td>R$ ${Number(o.total).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
-                    <td>${new Date(o.created_at).toLocaleString('pt-BR')}</td>
-                </tr>
-            `).join('');
-        }
-
-        // Carrega ao abrir a página
-        window.onload = loadAdminDataFromSupabase;
-    </script>
-</body>
-</html>
+                <th>Data do Ped
