@@ -113,6 +113,29 @@
 
         body.has-save-bar { padding-bottom: 100px; }
     </style>
+    <style>
+        /* ===== ADIÇÕES: mensagens de clientes ===== */
+        .msg-badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; white-space: nowrap; }
+        .msg-badge.new { background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid #f59e0b; }
+        .msg-badge.done { background: rgba(34,197,94,0.15); color: #22c55e; border: 1px solid #22c55e; }
+        .msg-text { white-space: pre-wrap; word-break: break-word; max-width: 340px; }
+        .reply-input {
+            width: 100%; min-width: 220px; min-height: 70px; box-sizing: border-box; resize: vertical;
+            background: #121826; color: #f3f4f6; border: 1px solid rgba(212,175,55,0.3);
+            border-radius: 6px; padding: 8px 10px; font-family: 'Montserrat', sans-serif; font-size: 0.85rem;
+        }
+        .reply-input:focus { outline: none; border-color: #d4af37; }
+        .reply-actions { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+        .btn-reply, .btn-mail {
+            padding: 7px 14px; border-radius: 6px; font-weight: 700; font-size: 0.8rem; cursor: pointer;
+            font-family: 'Montserrat', sans-serif; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+        }
+        .btn-reply { background: #22c55e; color: #fff; border: none; }
+        .btn-reply:hover { background: #16a34a; }
+        .btn-reply:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn-mail { background: transparent; color: #d4af37; border: 1px solid #d4af37; }
+        .btn-mail:hover { background: #d4af37; color: #0b0f19; }
+    </style>
 </head>
 <body>
 
@@ -137,6 +160,7 @@
             <div class="stat-card"><h3>Total de Pedidos</h3><p id="total-orders">-</p></div>
             <div class="stat-card"><h3>Faturamento Estimado</h3><p id="total-revenue">R$ 0,00</p></div>
             <div class="stat-card"><h3>Aguardando Pagamento</h3><p id="total-pending">-</p></div>
+            <div class="stat-card"><h3>Mensagens Novas</h3><p id="total-messages-new">-</p></div>
         </div>
 
         <button class="refresh-btn" onclick="loadAdminDataFromSupabase()">🔄 Recarregar Dados</button>
@@ -158,6 +182,24 @@
             </thead>
             <tbody id="orders-table-body">
                 <tr><td colspan="7" class="loading">Conectando ao banco de dados Supabase...</td></tr>
+            </tbody>
+        </table>
+
+        <h2>💬 Mensagens de Clientes (Fale Conosco)</h2>
+        <p class="small-note">Mensagens enviadas pelo formulário "Fale Conosco" da loja. Escreva a resposta e clique em <strong style="color: #22c55e;">Enviar resposta</strong>: o cliente a verá na aba "Atendimento ao Cliente" do site.</p>
+        <br>
+        <table>
+            <thead>
+                <tr>
+                    <th>Data</th>
+                    <th>Cliente</th>
+                    <th>Mensagem</th>
+                    <th>Status</th>
+                    <th>Resposta / Contato</th>
+                </tr>
+            </thead>
+            <tbody id="messages-table-body">
+                <tr><td colspan="5" class="loading">Carregando mensagens...</td></tr>
             </tbody>
         </table>
     </div>
@@ -469,6 +511,106 @@
                 e.returnValue = '';
             }
         });
+    </script>
+    <script>
+        // =====================================================================
+        // ADIÇÕES: recebimento e resposta de mensagens de clientes
+        // (usa a tabela "messages" do Supabase; não altera o código existente)
+        // =====================================================================
+        const MESSAGES_CHANNEL = 'whitetech-messages';
+        let messagesReady = false;
+        const messagesRT = _supabase.channel(MESSAGES_CHANNEL, { config: { broadcast: { ack: true } } })
+            .on('broadcast', { event: 'new-message' }, () => loadMessages())
+            .subscribe(status => { messagesReady = (status === 'SUBSCRIBED'); });
+        const messagesLocal = ('BroadcastChannel' in window) ? new BroadcastChannel(MESSAGES_CHANNEL) : null;
+        if (messagesLocal) messagesLocal.onmessage = () => loadMessages();
+
+        function escHtml(s) {
+            return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+
+        function isEditingReply() {
+            const active = document.activeElement;
+            if (active && active.classList && active.classList.contains('reply-input')) return true;
+            return Array.from(document.querySelectorAll('.reply-input')).some(t => t.value.trim() !== (t.dataset.original || '').trim());
+        }
+
+        async function loadMessages(force = false) {
+            if (!force && isEditingReply()) return; // não apaga o que o admin está digitando
+            const tbody = document.getElementById('messages-table-body');
+            const { data, error } = await _supabase.from('messages').select('*').order('created_at', { ascending: false });
+
+            if (error) {
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#ff6b6b;">Erro ao carregar mensagens: ${escHtml(error.message)}<br><small>Verifique se a tabela "messages" foi criada no Supabase (veja o SQL de instalação).</small></td></tr>`;
+                return;
+            }
+            const msgs = data || [];
+            document.getElementById('total-messages-new').innerText = msgs.filter(m => !m.reply).length;
+
+            if (msgs.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#9ca3af;">Nenhuma mensagem recebida ainda.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = msgs.map(m => {
+                const answered = !!m.reply;
+                const subject = encodeURIComponent('WhiteTech - Resposta ao seu contato');
+                return `
+                <tr>
+                    <td>${new Date(m.created_at).toLocaleString('pt-BR')}</td>
+                    <td><strong style="color:#d4af37;">${escHtml(m.name)}</strong><br><small>${escHtml(m.email)}</small></td>
+                    <td><div class="msg-text">${escHtml(m.message)}</div></td>
+                    <td><span class="msg-badge ${answered ? 'done' : 'new'}">${answered ? 'Respondido' : 'Novo'}</span></td>
+                    <td>
+                        <textarea class="reply-input" id="reply-${m.id}" data-original="${escHtml(m.reply || '')}" placeholder="Escreva a resposta ao cliente...">${escHtml(m.reply || '')}</textarea>
+                        <div class="reply-actions">
+                            <button class="btn-reply" onclick="sendReply(${m.id}, this)"><i class="fa-solid fa-paper-plane"></i> ${answered ? 'Atualizar resposta' : 'Enviar resposta'}</button>
+                            <a class="btn-mail" href="mailto:${encodeURIComponent(m.email)}?subject=${subject}"><i class="fa-solid fa-envelope"></i> E-mail</a>
+                        </div>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        async function sendReply(id, btn) {
+            const ta = document.getElementById(`reply-${id}`);
+            const text = ta.value.trim();
+            if (!text) { showToast('⚠️ Escreva uma resposta antes de enviar.', 'warning'); return; }
+
+            btn.disabled = true;
+            const { data, error } = await _supabase
+                .from('messages')
+                .update({ reply: text, status: 'Respondido', replied_at: new Date().toISOString() })
+                .eq('id', id)
+                .select();
+            btn.disabled = false;
+
+            if (error || !data || data.length === 0) {
+                const msg = error ? error.message : 'O Supabase bloqueou o UPDATE (falta policy de RLS na tabela messages).';
+                showToast(`❌ Erro ao enviar resposta: ${msg}`, 'error');
+                return;
+            }
+
+            ta.dataset.original = text;
+            showToast('✅ Resposta enviada ao cliente!', 'success');
+            const payload = { at: Date.now() };
+            try { if (messagesLocal) messagesLocal.postMessage(payload); } catch (e) {}
+            try { if (messagesReady) await messagesRT.send({ type: 'broadcast', event: 'message-replied', payload }); } catch (e) {}
+            loadMessages(true);
+        }
+
+        // Inicia quando o painel for liberado (após o login) e atualiza a cada 10 s
+        const messagesBoot = setInterval(() => {
+            const panel = document.getElementById('admin-content');
+            if (panel && !panel.classList.contains('hidden')) {
+                clearInterval(messagesBoot);
+                loadMessages(true);
+                setInterval(() => { if (!document.hidden) loadMessages(); }, 10000);
+            }
+        }, 500);
+
+        // O botão "Recarregar Dados" também recarrega as mensagens
+        document.querySelector('.refresh-btn').addEventListener('click', () => loadMessages(true));
     </script>
 </body>
 </html>
