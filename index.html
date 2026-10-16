@@ -71,12 +71,6 @@
             cursor: pointer; text-transform: uppercase; letter-spacing: 1px; transition: var(--transition);
         }
         .btn-primary:hover { background: var(--accent-gold-hover); transform: translateY(-2px); }
-        .btn-secondary {
-            background: transparent; color: var(--text-main);
-            padding: 12px 30px; font-weight: 700; border: 1px solid var(--border-color); border-radius: 4px;
-            cursor: pointer; text-transform: uppercase; letter-spacing: 1px; transition: var(--transition);
-        }
-        .btn-secondary:hover { border-color: var(--accent-gold); color: var(--accent-gold); }
 
         .catalog-container { max-width: 1200px; margin: 0 auto; padding: 40px 20px; }
         .section-title { text-align: center; font-size: 3rem; margin-bottom: 10px; }
@@ -140,9 +134,17 @@
         .close-modal:hover { color: var(--accent-gold); }
         .cart-items-list { margin: 20px 0; max-height: 250px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
         .cart-item { display: flex; justify-content: space-between; align-items: center; background: var(--bg-card); padding: 10px 15px; border-radius: 8px; }
+        .cart-item-info { flex: 1; min-width: 0; }
+        .cart-item-right { display: flex; align-items: center; gap: 14px; }
+        .remove-item-btn {
+            background: transparent; border: 1px solid rgba(239,68,68,0.5); color: #ef4444;
+            width: 34px; height: 34px; border-radius: 6px; cursor: pointer;
+            display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s ease;
+        }
+        .remove-item-btn:hover { background: #ef4444; color: #fff; }
         .cart-total { font-size: 1.3rem; font-weight: 700; text-align: right; margin: 20px 0; color: var(--accent-gold); }
 
-        /* ==================== ESTILOS DE ACOMPANHAMENTO DE PEDIDO ==================== */
+        /* ==================== ACOMPANHAMENTO DE PEDIDO ==================== */
         .orders-container { max-width: 1000px; margin: 0 auto; padding: 40px 20px; }
         .order-card {
             background: var(--bg-card); border: 1px solid var(--border-color);
@@ -163,10 +165,6 @@
         }
         .status-waiting { background: rgba(245, 158, 11, 0.15); color: var(--warning); border: 1px solid var(--warning); }
         .status-paid { background: rgba(34, 197, 94, 0.15); color: var(--success); border: 1px solid var(--success); }
-        .status-preparing { background: rgba(59, 130, 246, 0.15); color: var(--info); border: 1px solid var(--info); }
-        .status-shipped { background: rgba(168, 85, 247, 0.15); color: #a855f7; border: 1px solid #a855f7; }
-        .status-out-for-delivery { background: rgba(236, 72, 153, 0.15); color: #ec4899; border: 1px solid #ec4899; }
-        .status-delivered { background: rgba(34, 197, 94, 0.2); color: var(--success); border: 2px solid var(--success); }
         .status-cancelled { background: rgba(239, 68, 68, 0.15); color: var(--danger); border: 1px solid var(--danger); }
 
         .order-details-grid {
@@ -179,7 +177,6 @@
         }
         .order-detail-item p { font-size: 0.95rem; color: var(--text-main); }
 
-        /* Timeline de progresso */
         .timeline {
             display: flex; justify-content: space-between; align-items: flex-start;
             margin: 30px 0 20px 0; position: relative;
@@ -223,15 +220,30 @@
         }
         .empty-orders i { font-size: 3rem; color: var(--accent-gold); margin-bottom: 20px; opacity: 0.5; }
 
-        .order-items-list {
-            background: var(--bg-secondary); border-radius: 8px; padding: 15px;
-            margin-bottom: 20px;
+        /* ==================== TOOLBAR DE PEDIDOS ==================== */
+        .orders-toolbar {
+            display: flex; justify-content: space-between; align-items: center;
+            flex-wrap: wrap; gap: 15px; margin-bottom: 30px;
+            background: var(--bg-card); border: 1px solid var(--border-color);
+            border-radius: 10px; padding: 15px 20px;
         }
-        .order-item-row {
-            display: flex; justify-content: space-between; padding: 8px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.9rem;
+        .btn-refresh {
+            background: var(--accent-gold); color: var(--bg-primary);
+            border: none; padding: 10px 20px; border-radius: 6px;
+            font-weight: 700; cursor: pointer; font-family: 'Montserrat', sans-serif;
+            font-size: 0.9rem; display: inline-flex; align-items: center; gap: 8px;
+            transition: var(--transition); text-transform: uppercase; letter-spacing: 0.5px;
         }
-        .order-item-row:last-child { border-bottom: none; }
+        .btn-refresh:hover { background: var(--accent-gold-hover); transform: translateY(-2px); }
+        .btn-refresh:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        .btn-refresh .fa-rotate-right.spinning { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        .info-text {
+            color: var(--text-muted); font-size: 0.85rem;
+            display: inline-flex; align-items: center; gap: 8px;
+        }
+        .info-text i { color: var(--accent-gold); }
 
         @media(max-width: 768px) {
             nav ul { display: none; }
@@ -240,6 +252,9 @@
             .timeline::before { display: none; }
             .timeline-step { flex: 0 0 45%; }
             .order-header { flex-direction: column; align-items: flex-start; }
+            .orders-toolbar { flex-direction: column; align-items: stretch; }
+            .btn-refresh { justify-content: center; }
+            .info-text { justify-content: center; }
         }
     </style>
 </head>
@@ -279,11 +294,20 @@
         </div>
     </section>
 
-    <!-- ==================== NOVA SEÇÃO: MEUS PEDIDOS ==================== -->
     <section id="orders" class="spa-section">
         <div class="orders-container">
             <h2 class="section-title">Meus <span class="cursive-det">Pedidos</span></h2>
-            <p class="section-subtitle">Acompanhe em tempo real o status dos seus pedidos.</p>
+            <p class="section-subtitle">Acompanhe o status dos seus pedidos.</p>
+
+            <div class="orders-toolbar" id="orders-toolbar" style="display:none;">
+                <button class="btn-refresh" onclick="loadUserOrders(true)" id="btn-refresh-orders">
+                    <i class="fa-solid fa-rotate-right"></i> Atualizar Agora
+                </button>
+                <span class="info-text">
+                    <i class="fa-solid fa-circle-info"></i>
+                    Clique em "Atualizar Agora" para ver mudanças de status
+                </span>
+            </div>
 
             <div id="orders-loading" style="text-align:center; padding: 40px; color: var(--text-muted); display: none;">
                 <i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem; color: var(--accent-gold);"></i>
@@ -384,6 +408,7 @@
 
         let cart = [];
         let currentUser = null;
+        let ordersCache = {};
 
         // ==================== NAVEGAÇÃO SPA ====================
         function switchSection(sectionId) {
@@ -396,7 +421,7 @@
             if (link) link.classList.add('active-link');
             window.scrollTo({ top: 0, behavior: 'smooth' });
 
-            // Se entrar na aba "Meus Pedidos", carrega os pedidos
+            // Sempre que entrar em "Meus Pedidos", recarrega do zero (pega mudanças do admin)
             if (sectionId === 'orders') {
                 loadUserOrders();
             }
@@ -458,6 +483,12 @@
         function closeLoginModal() { document.getElementById('login-modal').classList.remove('open'); }
         function closeCheckoutModal() { document.getElementById('checkout-modal').classList.remove('open'); }
 
+        function removeFromCart(id) {
+            cart = cart.filter(item => item.id !== id);
+            updateCartCount();
+            renderCartItems();
+        }
+
         function renderCartItems() {
             const container = document.getElementById('cart-items-container');
             if (cart.length === 0) {
@@ -470,9 +501,12 @@
                 const sub = item.price * item.qty;
                 total += sub;
                 return `<div class="cart-item">
-                    <div><strong>${item.title}</strong><br>
+                    <div class="cart-item-info"><strong>${item.title}</strong><br>
                     <small style="color: var(--text-muted);">${item.qty}x R$ ${item.price.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</small></div>
-                    <span>R$ ${sub.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                    <div class="cart-item-right">
+                        <span>R$ ${sub.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                        <button class="remove-item-btn" title="Remover produto" aria-label="Remover ${item.title}" onclick="removeFromCart(${item.id})"><i class="fa-solid fa-trash"></i></button>
+                    </div>
                 </div>`;
             }).join('');
             document.getElementById('cart-total-display').innerText = `Total: R$ ${total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
@@ -480,8 +514,9 @@
 
         function handleLogin(e) {
             e.preventDefault();
-            const email = document.getElementById('login-email').value;
+            const email = document.getElementById('login-email').value.trim().toLowerCase();
             currentUser = email;
+            sessionStorage.setItem('whitetech_user', currentUser);
             document.getElementById('user-status-text').innerText = email.split('@')[0];
             closeLoginModal();
             alert('Login efetuado com sucesso!');
@@ -499,7 +534,7 @@
             document.getElementById('checkout-modal').classList.add('open');
         }
 
-        // ==================== FINALIZAR PEDIDO (SUPABASE) ====================
+        // ==================== FINALIZAR PEDIDO ====================
         async function finalizeOrder(e) {
             e.preventDefault();
 
@@ -529,12 +564,11 @@
                 return;
             }
 
-            console.log('Pedido salvo com sucesso:', data);
             alert('✅ Pedido realizado com sucesso!\nAcesse "Meus Pedidos" para acompanhar.');
             cart = [];
             updateCartCount();
             closeCheckoutModal();
-            switchSection('orders'); // Já leva o cliente para acompanhar o pedido
+            switchSection('orders');
         }
 
         function handleContact(e) {
@@ -544,11 +578,14 @@
         }
 
         // ==================== ACOMPANHAMENTO DE PEDIDOS ====================
-        async function loadUserOrders() {
+        async function loadUserOrders(isManualRefresh = false) {
             const container = document.getElementById('orders-list');
             const loading = document.getElementById('orders-loading');
+            const toolbar = document.getElementById('orders-toolbar');
+            const refreshBtn = document.getElementById('btn-refresh-orders');
 
             if (!currentUser) {
+                toolbar.style.display = 'none';
                 container.innerHTML = `
                     <div class="empty-orders">
                         <i class="fa-solid fa-user-lock"></i>
@@ -559,37 +596,99 @@
                 return;
             }
 
-            loading.style.display = 'block';
-            container.innerHTML = '';
+            if (isManualRefresh && refreshBtn) {
+                refreshBtn.disabled = true;
+                refreshBtn.innerHTML = '<i class="fa-solid fa-rotate-right spinning"></i> Atualizando...';
+            }
 
-            const { data: orders, error } = await _supabase
+            const isFirstLoad = container.innerHTML.trim() === '';
+            if (isFirstLoad) {
+                loading.style.display = 'block';
+                toolbar.style.display = 'none';
+            }
+
+            const { data: allOrders, error } = await _supabase
                 .from('orders')
                 .select('*')
-                .eq('client', currentUser)
                 .order('created_at', { ascending: false });
 
             loading.style.display = 'none';
 
+            if (refreshBtn) {
+                refreshBtn.disabled = false;
+                refreshBtn.innerHTML = '<i class="fa-solid fa-rotate-right"></i> Atualizar Agora';
+            }
+
             if (error) {
+                toolbar.style.display = 'none';
                 container.innerHTML = `<div class="empty-orders"><p style="color: var(--danger);">Erro ao carregar pedidos: ${error.message}</p></div>`;
                 return;
             }
 
+            const orders = (allOrders || []).filter(o => 
+                o.client && o.client.toLowerCase().trim() === currentUser
+            );
+
             if (!orders || orders.length === 0) {
+                toolbar.style.display = 'none';
                 container.innerHTML = `
                     <div class="empty-orders">
                         <i class="fa-solid fa-box-open"></i>
                         <h3 style="font-size: 1.8rem; margin-bottom: 10px;">Nenhum pedido encontrado</h3>
-                        <p>Você ainda não realizou nenhuma compra.</p>
+                        <p>Você ainda não realizou nenhuma compra com <strong style="color: var(--accent-gold);">${currentUser}</strong>.</p>
                         <button class="btn-primary" style="margin-top: 20px;" onclick="switchSection('catalog')">Explorar Catálogo</button>
                     </div>`;
                 return;
             }
 
+            toolbar.style.display = 'flex';
+
+            const changedOrderIds = [];
+            orders.forEach(order => {
+                const prev = ordersCache[order.id];
+                if (prev) {
+                    const payChanged = prev.payment_status !== order.payment_status;
+                    const delChanged = prev.delivery_status !== order.delivery_status;
+                    if (payChanged || delChanged) changedOrderIds.push(order.id);
+                }
+                ordersCache[order.id] = {
+                    payment_status: order.payment_status || 'Aguardando Pagamento',
+                    delivery_status: order.delivery_status || 'Em Preparo'
+                };
+            });
+
             container.innerHTML = orders.map(order => renderOrderCard(order)).join('');
+
+            // Animação quando mudar
+            changedOrderIds.forEach(id => {
+                const card = document.querySelector(`[data-order-id="${id}"]`);
+                if (card) {
+                    card.classList.add('updated-flash');
+                    setTimeout(() => card.classList.remove('updated-flash'), 2000);
+                }
+            });
+
+            if (!isFirstLoad && changedOrderIds.length > 0) {
+                showOrderUpdateNotification(changedOrderIds.length);
+            }
         }
 
-        // Define as etapas da timeline
+        function showOrderUpdateNotification(count) {
+            const toast = document.createElement('div');
+            toast.innerHTML = `<i class="fa-solid fa-bell" style="margin-right: 8px;"></i>${count > 1 ? `${count} pedidos atualizados!` : 'Seu pedido foi atualizado!'}`;
+            toast.style.cssText = `
+                position: fixed; top: 100px; right: 20px; z-index: 3000;
+                background: var(--accent-gold); color: var(--bg-primary);
+                padding: 14px 22px; border-radius: 8px; font-weight: 700;
+                box-shadow: 0 10px 30px rgba(212,175,55,0.4);
+                font-size: 0.95rem;
+                display: flex; align-items: center;
+            `;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
+        }
+
+        // ==================== RENDER ====================
         const DELIVERY_STEPS = [
             { key: 'Em Preparo', label: 'Em Preparo', icon: 'fa-box' },
             { key: 'Saiu da Unidade', label: 'Saiu da Unidade', icon: 'fa-warehouse' },
@@ -633,7 +732,7 @@
             const paymentStatus = order.payment_status || 'Aguardando Pagamento';
 
             return `
-                <div class="order-card">
+                <div class="order-card" data-order-id="${order.id}">
                     <div class="order-header">
                         <div>
                             <div class="order-id">Pedido ${orderId}</div>
@@ -672,21 +771,53 @@
                 </div>`;
         }
 
+        // ==================== LINK COM O PAINEL ADMIN ====================
+        // Quando o admin salva, "Meus Pedidos" é atualizado automaticamente.
+        const ORDERS_CHANNEL = 'whitetech-orders';
+        let refreshTimer = null;
+
+        function refreshOrdersFromAdmin() {
+            // Pequeno debounce para juntar avisos duplicados (broadcast + realtime + local)
+            clearTimeout(refreshTimer);
+            refreshTimer = setTimeout(() => {
+                if (currentUser) loadUserOrders();
+            }, 300);
+        }
+
+        function initAdminLink() {
+            // 0) Reserva garantida: consulta o banco a cada 8s enquanto "Meus Pedidos" está aberta
+            setInterval(() => {
+                if (currentUser && !document.hidden && document.getElementById('orders').classList.contains('active')) {
+                    loadUserOrders();
+                }
+            }, 8000);
+            // 1) Mesmo navegador: instantâneo
+            if ('BroadcastChannel' in window) {
+                new BroadcastChannel(ORDERS_CHANNEL).onmessage = refreshOrdersFromAdmin;
+            }
+            // 2) Qualquer dispositivo: broadcast do Supabase enviado pelo admin ao salvar
+            _supabase.channel(ORDERS_CHANNEL)
+                .on('broadcast', { event: 'orders-updated' }, refreshOrdersFromAdmin)
+                .subscribe();
+            // 3) Reserva: mudanças diretas na tabela (se o Realtime estiver ativo para "orders")
+            _supabase.channel('orders-db-changes')
+                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' }, refreshOrdersFromAdmin)
+                .subscribe();
+            // 4) Reserva final: ao voltar para a aba do navegador, recarrega
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden && document.getElementById('orders').classList.contains('active')) refreshOrdersFromAdmin();
+            });
+        }
+
+        // ==================== INIT ====================
         window.onload = () => {
             renderCatalog();
-            // Se o usuário já estiver logado (sessionStorage), restaura
+            initAdminLink();
             const saved = sessionStorage.getItem('whitetech_user');
             if (saved) {
-                currentUser = saved;
+                currentUser = saved.toLowerCase().trim();
                 document.getElementById('user-status-text').innerText = saved.split('@')[0];
             }
-        };
-
-        // Salva login na sessão
-        const _originalHandleLogin = handleLogin;
-        handleLogin = function(e) {
-            _originalHandleLogin(e);
-            if (currentUser) sessionStorage.setItem('whitetech_user', currentUser);
         };
     </script>
 </body>
