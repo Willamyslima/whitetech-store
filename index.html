@@ -9,6 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@300;400;500;600;700&family=Yellowtail&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
     <style>
         :root {
@@ -336,6 +337,37 @@
         .login-hint a { color:var(--accent-gold); cursor:pointer; font-weight:600; }
         input[readonly] { opacity:0.75; cursor:not-allowed; }
     </style>
+    <style>
+        /* ===== Cartão / Pix / resultado do pedido ===== */
+        .card-preview { background: linear-gradient(135deg, #2b3150 0%, #12141f 70%); border: 1px solid var(--border-color); border-radius: 14px; padding: 16px 18px; margin: 0 auto 16px; max-width: 340px; color: #fff; box-shadow: 0 8px 24px rgba(0,0,0,0.35); }
+        .card-preview .cp-top { display:flex; justify-content:space-between; align-items:center; color: var(--accent-gold); font-size: 1.3rem; }
+        .card-preview .cp-top span { font-size: 0.8rem; font-weight: 700; letter-spacing: 1px; }
+        .card-preview .cp-number { font-family: 'Courier New', monospace; font-size: 1.15rem; letter-spacing: 2px; margin: 18px 0 14px; word-spacing: 4px; }
+        .card-preview .cp-bottom { display:flex; justify-content:space-between; gap:10px; font-size: 0.8rem; }
+        .card-preview small { display:block; color: var(--text-muted); font-size: 0.62rem; letter-spacing: 1px; }
+        .card-preview .cp-bottom div > div { font-weight: 600; text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 190px; }
+        .pay-detail .form-group { margin-bottom: 12px; }
+        .pay-detail .form-group label { color: var(--text-main); }
+        .f-row { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .input-wrap { position: relative; }
+        .input-wrap input { width: 100%; padding-right: 86px; }
+        .brand-tag { position:absolute; right:10px; top:50%; transform:translateY(-50%); font-size:0.7rem; font-weight:700; color:var(--accent-gold); letter-spacing:0.5px; pointer-events:none; }
+        .field-error { color: var(--danger, #ff6b6b); font-size: 0.78rem; min-height: 0; }
+        .pay-detail input.invalid { border-color: var(--danger, #ff6b6b) !important; }
+        .secure-note { margin-top: 4px; font-size: 0.78rem; color: var(--text-muted); }
+        .secure-note i { color: var(--accent-gold); margin-right: 4px; }
+        .result-box { text-align: center; }
+        .result-box .big-icon { font-size: 3rem; color: var(--accent-gold); margin-bottom: 10px; }
+        .result-box h2 { margin-bottom: 8px; }
+        .result-box p { color: var(--text-muted); font-size: 0.92rem; margin-bottom: 12px; }
+        .result-line { display:flex; justify-content:space-between; gap:10px; background: var(--bg-card); border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; margin-bottom:8px; font-size:0.88rem; text-align:left; }
+        .result-line b { color: var(--accent-gold); text-align:right; }
+        #pix-qr { background:#fff; padding:12px; border-radius:10px; display:inline-block; margin: 6px 0 14px; }
+        #pix-qr img, #pix-qr canvas { display:block; }
+        .pix-code { width:100%; min-height: 84px; background: var(--bg-card); color: var(--text-main); border:1px solid var(--border-color); border-radius:8px; padding:10px; font-family:'Courier New',monospace; font-size:0.75rem; resize:none; margin-bottom:10px; }
+        .pix-steps { text-align:left; color: var(--text-muted); font-size:0.85rem; padding-left: 20px; margin: 10px 0 16px; line-height: 1.7; }
+        .pix-warn { background: rgba(255,107,107,0.1); border:1px solid var(--danger, #ff6b6b); color: var(--danger, #ff6b6b); border-radius:8px; padding:12px; font-size:0.85rem; margin-bottom:14px; text-align:left; }
+    </style>
 </head>
 <body>
 
@@ -469,6 +501,13 @@
         </div>
     </div>
 
+    <div class="modal-overlay" id="result-modal">
+        <div class="modal-content">
+            <button class="close-modal" onclick="closeResultModal()" aria-label="Fechar">&times;</button>
+            <div class="result-box" id="result-body"></div>
+        </div>
+    </div>
+
     <div class="modal-overlay" id="checkout-modal">
         <div class="modal-content">
             <button class="close-modal" onclick="closeCheckoutModal()">&times;</button>
@@ -516,15 +555,56 @@
                     </div>
 
                     <div class="pay-detail" id="pay-detail-card">
-                        Escolha o número de parcelas:
-                        <select id="chk-parcelas" onchange="updatePayDetail()"></select>
+                        <div class="card-preview" aria-hidden="true">
+                            <div class="cp-top"><i class="fa-solid fa-microchip"></i><span id="cp-brand">CARTÃO</span></div>
+                            <div class="cp-number" id="cp-number">•••• •••• •••• ••••</div>
+                            <div class="cp-bottom">
+                                <div><small>TITULAR</small><div id="cp-name">NOME NO CARTÃO</div></div>
+                                <div><small>VALIDADE</small><div id="cp-exp">MM/AA</div></div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="cc-number">Número do cartão</label>
+                            <div class="input-wrap">
+                                <input type="text" id="cc-number" inputmode="numeric" autocomplete="cc-number" placeholder="0000 0000 0000 0000" maxlength="23">
+                                <span class="brand-tag" id="cc-brand"></span>
+                            </div>
+                            <span class="field-error" id="err-cc-number"></span>
+                        </div>
+                        <div class="form-group">
+                            <label for="cc-name">Nome impresso no cartão</label>
+                            <input type="text" id="cc-name" autocomplete="cc-name" placeholder="COMO ESTÁ NO CARTÃO" maxlength="40">
+                            <span class="field-error" id="err-cc-name"></span>
+                        </div>
+                        <div class="f-row">
+                            <div class="form-group">
+                                <label for="cc-exp">Validade</label>
+                                <input type="text" id="cc-exp" inputmode="numeric" autocomplete="cc-exp" placeholder="MM/AA" maxlength="5">
+                                <span class="field-error" id="err-cc-exp"></span>
+                            </div>
+                            <div class="form-group">
+                                <label for="cc-cvv">CVV</label>
+                                <input type="password" id="cc-cvv" inputmode="numeric" autocomplete="cc-csc" placeholder="•••" maxlength="4">
+                                <span class="field-error" id="err-cc-cvv"></span>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="cc-cpf">CPF do titular</label>
+                            <input type="text" id="cc-cpf" inputmode="numeric" autocomplete="off" placeholder="000.000.000-00" maxlength="14">
+                            <span class="field-error" id="err-cc-cpf"></span>
+                        </div>
+                        <div class="form-group">
+                            <label for="chk-parcelas">Parcelas</label>
+                            <select id="chk-parcelas" onchange="updatePayDetail()"></select>
+                        </div>
+                        <p class="secure-note"><i class="fa-solid fa-lock"></i> Por segurança, o número completo e o CVV não são armazenados: guardamos apenas a bandeira e os 4 últimos dígitos.</p>
                     </div>
                     <div class="pay-detail" id="pay-detail-pix"><i class="fa-solid fa-bolt" style="color:var(--accent-gold);"></i> Após confirmar o pedido, o status será atualizado para aprovado assim que o Pix for identificado. Acompanhe em <b>Meus Pedidos</b>.</div>
                     <div class="pay-detail" id="pay-detail-boleto"><i class="fa-solid fa-circle-info" style="color:var(--accent-gold);"></i> O pedido é liberado após a compensação do boleto (até 2 dias úteis). Acompanhe em <b>Meus Pedidos</b>.</div>
 
                     <div class="chk-actions">
                         <button type="button" class="btn-ghost" onclick="checkoutGoStep(1)"><i class="fa-solid fa-arrow-left"></i> Voltar</button>
-                        <button type="submit" class="btn-primary">Confirmar Pedido</button>
+                        <button type="submit" class="btn-primary" id="chk-submit">Confirmar Pedido</button>
                     </div>
                 </div>
             </form>
@@ -625,7 +705,7 @@
         function closeCartModal() { document.getElementById('cart-modal').classList.remove('open'); }
         function openLoginModal() { document.getElementById('login-modal').classList.add('open'); }
         function closeLoginModal() { document.getElementById('login-modal').classList.remove('open'); }
-        function closeCheckoutModal() { document.getElementById('checkout-modal').classList.remove('open'); }
+        function closeCheckoutModal() { document.getElementById('checkout-modal').classList.remove('open'); if (typeof resetCardForm === 'function') resetCardForm(); }
 
         function removeFromCart(id) {
             cart = cart.filter(item => item.id !== id);
@@ -698,6 +778,7 @@
                 sel.appendChild(o);
             }
             document.querySelector('input[name="chk-pay"][value="card"]').checked = true;
+            if (typeof resetCardForm === 'function') resetCardForm();
             updatePayDetail();
             checkoutGoStep(1, true);
         }
@@ -713,54 +794,9 @@
             document.getElementById('chk-step-ind-2').className = 'chk-step ' + (n === 2 ? 'active' : '');
         }
 
-        function selectedPayment() {
-            const v = document.querySelector('input[name="chk-pay"]:checked').value;
-            if (v === 'pix') return 'Pix';
-            if (v === 'boleto') return 'Boleto Bancário';
-            const n = parseInt(document.getElementById('chk-parcelas').value, 10) || 1;
-            return n === 1 ? 'Cartão de Crédito (à vista)' : `Cartão de Crédito (${n}x de ${brl(cartTotal() / n)})`;
-        }
-
         function updatePayDetail() {
             const v = document.querySelector('input[name="chk-pay"]:checked').value;
             ['card', 'pix', 'boleto'].forEach(k => document.getElementById('pay-detail-' + k).classList.toggle('show', k === v));
-        }
-
-        // ==================== FINALIZAR PEDIDO ====================
-        async function finalizeOrder(e) {
-            e.preventDefault();
-
-            const endereco = document.getElementById('chk-endereco').value.trim();
-            const cidade = document.getElementById('chk-cidade').value.trim();
-            const cep = document.getElementById('chk-cep').value.trim();
-            const pagamento = selectedPayment();
-
-            const total = cart.reduce((sum, i) => sum + (i.price * i.qty), 0);
-            const orderData = {
-                client: currentUser,
-                address: `${endereco}, ${cidade} - CEP: ${cep}`,
-                payment: pagamento,
-                total: total,
-                payment_status: 'Aguardando Pagamento',
-                delivery_status: 'Em Preparo'
-            };
-
-            const { data, error } = await _supabase
-                .from('orders')
-                .insert([orderData])
-                .select();
-
-            if (error) {
-                console.error('Erro ao salvar pedido:', error);
-                alert('Erro ao finalizar o pedido:\n' + error.message);
-                return;
-            }
-
-            alert('✅ Pedido realizado com sucesso!\nAcesse "Meus Pedidos" para acompanhar.');
-            cart = [];
-            updateCartCount();
-            closeCheckoutModal();
-            switchSection('orders');
         }
 
         // Preenche o e-mail do "Fale Conosco" com o login atual (e bloqueia edição)
@@ -1745,6 +1781,295 @@
         });
         // Atualização automática enquanto a aba está aberta
         setInterval(() => { if (supportActive() && !document.hidden) loadSupportTickets(); }, 8000);
+    </script>
+    <script>
+        // =====================================================================
+        // PAGAMENTO: CARTÃO (validação completa), PIX (copia e cola + QR) e BOLETO
+        // =====================================================================
+
+        // ---- CONFIGURAÇÃO DA LOJA (preencha a chave Pix para gerar cobranças válidas) ----
+        const STORE_NAME = 'WhiteTech';
+        const STORE_CITY = 'Rio das Ostras';
+        const STORE_PIX_KEY = '';          // CPF/CNPJ (só números), e-mail, celular (+5522999999999) ou chave aleatória
+        const CARD_PROCESSING_MS = 900;    // tempo simulado de processamento do cartão
+
+        const $id = id => document.getElementById(id);
+        const onlyDigits = v => (v || '').replace(/\D/g, '');
+
+        // ---------- Bandeiras ----------
+        const CARD_BRANDS = [
+            { id: 'elo', name: 'Elo', re: /^(401178|401179|431274|438935|451416|457393|457631|457632|504175|506699|5067[0-6]\d|50677[0-8]|509\d{3}|627780|636297|636368|650[0-9]{3}|6516[5-7]\d|6550[0-9]{2}|655[01]\d{2})/, lengths: [16], cvv: 3 },
+            { id: 'hipercard', name: 'Hipercard', re: /^(606282|3841)/, lengths: [16, 19], cvv: 3 },
+            { id: 'amex', name: 'Amex', re: /^3[47]/, lengths: [15], cvv: 4 },
+            { id: 'diners', name: 'Diners', re: /^3(0[0-5]|[68])/, lengths: [14], cvv: 3 },
+            { id: 'visa', name: 'Visa', re: /^4/, lengths: [16], cvv: 3 },
+            { id: 'mastercard', name: 'Mastercard', re: /^(5[1-5]|2(2[2-9]|[3-6]\d|7[01]|720))/, lengths: [16], cvv: 3 }
+        ];
+        function detectBrand(d) { return CARD_BRANDS.find(b => b.re.test(d)) || null; }
+
+        function formatCardNumber(d, brand) {
+            if (brand && brand.id === 'amex') return [d.slice(0, 4), d.slice(4, 10), d.slice(10, 15)].filter(Boolean).join(' ');
+            if (brand && brand.id === 'diners') return [d.slice(0, 4), d.slice(4, 10), d.slice(10, 14)].filter(Boolean).join(' ');
+            return (d.match(/.{1,4}/g) || []).join(' ');
+        }
+        function maxCardLen(brand) { return brand ? Math.max(...brand.lengths) : 19; }
+
+        function luhn(d) {
+            let sum = 0, alt = false;
+            for (let i = d.length - 1; i >= 0; i--) {
+                let n = +d[i];
+                if (alt) { n *= 2; if (n > 9) n -= 9; }
+                sum += n; alt = !alt;
+            }
+            return d.length > 0 && sum % 10 === 0;
+        }
+        function validCPF(v) {
+            const c = onlyDigits(v);
+            if (c.length !== 11 || /^(\d)\1+$/.test(c)) return false;
+            for (let t = 9; t < 11; t++) {
+                let s = 0;
+                for (let i = 0; i < t; i++) s += +c[i] * (t + 1 - i);
+                if (((s * 10) % 11) % 10 !== +c[t]) return false;
+            }
+            return true;
+        }
+        const formatCPF = d => d.slice(0, 11).replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+
+        // ---------- Erros por campo ----------
+        function setErr(field, msg) {
+            const el = $id('err-' + field), inp = $id(field);
+            if (el) el.textContent = msg || '';
+            if (inp) { inp.classList.toggle('invalid', !!msg); inp.setAttribute('aria-invalid', msg ? 'true' : 'false'); }
+            return msg;
+        }
+        const validators = {
+            'cc-number'() {
+                const d = onlyDigits($id('cc-number').value), b = detectBrand(d);
+                if (!d) return 'Informe o número do cartão.';
+                const okLen = b ? b.lengths.includes(d.length) : (d.length >= 13 && d.length <= 19);
+                if (!okLen || !luhn(d)) return 'Número de cartão inválido.';
+                return '';
+            },
+            'cc-name'() {
+                const v = $id('cc-name').value.trim();
+                if (v.split(/\s+/).filter(w => w.length > 0).length < 2) return 'Informe nome e sobrenome como no cartão.';
+                return '';
+            },
+            'cc-exp'() {
+                const d = onlyDigits($id('cc-exp').value);
+                if (d.length !== 4) return 'Use o formato MM/AA.';
+                const mm = +d.slice(0, 2), yy = 2000 + (+d.slice(2));
+                if (mm < 1 || mm > 12) return 'Mês inválido.';
+                const now = new Date();
+                if (yy < now.getFullYear() || (yy === now.getFullYear() && mm < now.getMonth() + 1)) return 'Cartão vencido.';
+                if (yy > now.getFullYear() + 20) return 'Validade inválida.';
+                return '';
+            },
+            'cc-cvv'() {
+                const d = onlyDigits($id('cc-cvv').value), b = detectBrand(onlyDigits($id('cc-number').value));
+                const need = b ? b.cvv : 3;
+                if (d.length !== need) return `O CVV deve ter ${need} dígitos.`;
+                return '';
+            },
+            'cc-cpf'() { return validCPF($id('cc-cpf').value) ? '' : 'CPF inválido.'; }
+        };
+        function validateField(f) { return setErr(f, validators[f]()); }
+        function validateCardForm() {
+            let first = null;
+            Object.keys(validators).forEach(f => { if (validateField(f) && !first) first = $id(f); });
+            return first;
+        }
+
+        // ---------- Máscaras + pré-visualização ----------
+        function updateCardPreview() {
+            const d = onlyDigits($id('cc-number').value), b = detectBrand(d);
+            const total = b ? Math.max(...b.lengths) : 16;
+            const padded = (d + '•'.repeat(Math.max(0, total - d.length))).slice(0, total);
+            $id('cp-number').textContent = formatCardNumber(padded, b);
+            $id('cp-brand').textContent = b ? b.name.toUpperCase() : 'CARTÃO';
+            $id('cc-brand').textContent = b ? b.name : '';
+            $id('cp-name').textContent = $id('cc-name').value.trim() || 'NOME NO CARTÃO';
+            $id('cp-exp').textContent = $id('cc-exp').value || 'MM/AA';
+            $id('cc-cvv').placeholder = b && b.cvv === 4 ? '••••' : '•••';
+            $id('cc-cvv').maxLength = b ? b.cvv : 4;
+        }
+        function resetCardForm() {
+            ['cc-number', 'cc-name', 'cc-exp', 'cc-cvv', 'cc-cpf'].forEach(f => { if ($id(f)) { $id(f).value = ''; setErr(f, ''); } });
+            if ($id('cp-number')) updateCardPreview();
+        }
+        (function bindCardInputs() {
+            $id('cc-number').addEventListener('input', e => {
+                let d = onlyDigits(e.target.value);
+                const b = detectBrand(d);
+                d = d.slice(0, maxCardLen(b));
+                e.target.value = formatCardNumber(d, detectBrand(d));
+                if (e.target.classList.contains('invalid')) validateField('cc-number');
+                updateCardPreview();
+            });
+            $id('cc-name').addEventListener('input', e => {
+                e.target.value = e.target.value.toUpperCase().replace(/[^A-ZÀ-Ý ]/g, '').replace(/\s{2,}/g, ' ');
+                updateCardPreview();
+            });
+            $id('cc-exp').addEventListener('input', e => {
+                let d = onlyDigits(e.target.value).slice(0, 4);
+                if (d.length === 1 && d > '1') d = '0' + d;
+                e.target.value = d.length > 2 ? d.slice(0, 2) + '/' + d.slice(2) : d;
+                if (e.target.classList.contains('invalid')) validateField('cc-exp');
+                updateCardPreview();
+            });
+            $id('cc-cvv').addEventListener('input', e => { e.target.value = onlyDigits(e.target.value).slice(0, 4); });
+            $id('cc-cpf').addEventListener('input', e => { e.target.value = formatCPF(onlyDigits(e.target.value)); });
+            Object.keys(validators).forEach(f => $id(f).addEventListener('blur', () => { if ($id(f).value) validateField(f); }));
+        })();
+
+        // ---------- Gateway (ponto de integração) ----------
+        // Para cobrar de verdade, troque o corpo desta função pela chamada ao seu gateway
+        // (Mercado Pago, Stripe, Pagar.me, Cielo...), que deve tokenizar o cartão no navegador.
+        // Aqui só retornamos bandeira + 4 últimos dígitos; o número completo e o CVV nunca são salvos.
+        async function processCardPayment(card) {
+            await new Promise(r => setTimeout(r, CARD_PROCESSING_MS));
+            return { brand: card.brand ? card.brand.name : 'Cartão', last4: card.number.slice(-4), installments: card.installments };
+        }
+
+        function selectedMethod() { return document.querySelector('input[name="chk-pay"]:checked').value; }
+
+        function paymentLabel(method, cardInfo, total) {
+            if (method === 'pix') return 'Pix';
+            if (method === 'boleto') return 'Boleto Bancário';
+            const n = cardInfo.installments;
+            const parc = n === 1 ? 'à vista' : `${n}x de ${brl(total / n)}`;
+            return `Cartão de Crédito • ${cardInfo.brand} final ${cardInfo.last4} • ${parc}`;
+        }
+
+        // ---------- Pix (BR Code estático com valor) ----------
+        function emv(id, val) { return id + String(val.length).padStart(2, '0') + val; }
+        function crc16(str) {
+            let crc = 0xFFFF;
+            for (let i = 0; i < str.length; i++) {
+                crc ^= str.charCodeAt(i) << 8;
+                for (let j = 0; j < 8; j++) { crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) : (crc << 1); crc &= 0xFFFF; }
+            }
+            return crc.toString(16).toUpperCase().padStart(4, '0');
+        }
+        const asciiUpper = (s, max) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9 ]/g, '').toUpperCase().slice(0, max);
+        function buildPixPayload(key, amount, txid) {
+            let p = emv('00', '01') + emv('01', '11')
+                  + emv('26', emv('00', 'br.gov.bcb.pix') + emv('01', key))
+                  + emv('52', '0000') + emv('53', '986') + emv('54', amount.toFixed(2)) + emv('58', 'BR')
+                  + emv('59', asciiUpper(STORE_NAME, 25)) + emv('60', asciiUpper(STORE_CITY, 15))
+                  + emv('62', emv('05', txid)) + '6304';
+            return p + crc16(p);
+        }
+
+        // ---------- Finalizar pedido ----------
+        let orderSubmitting = false;
+        async function finalizeOrder(e) {
+            e.preventDefault();
+            if (orderSubmitting) return;
+            // Enter na etapa 1 apenas avança para o pagamento
+            if ($id('chk-step-2').style.display === 'none') { checkoutGoStep(2); return; }
+            if (!currentUser) { alert('Faça login para finalizar a compra.'); openLoginModal(); return; }
+            if (cart.length === 0) { alert('Seu carrinho está vazio.'); closeCheckoutModal(); return; }
+
+            const method = selectedMethod();
+            if (method === 'card') {
+                const bad = validateCardForm();
+                if (bad) { bad.focus(); return; }
+            }
+
+            const endereco = $id('chk-endereco').value.trim();
+            const cidade = $id('chk-cidade').value.trim();
+            const cep = $id('chk-cep').value.trim();
+            const total = cartTotal();
+            const btn = $id('chk-submit'), btnHtml = btn.innerHTML;
+
+            orderSubmitting = true;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> ' + (method === 'card' ? 'Processando pagamento...' : 'Registrando pedido...');
+
+            try {
+                let cardInfo = null;
+                if (method === 'card') {
+                    const b = detectBrand(onlyDigits($id('cc-number').value));
+                    cardInfo = await processCardPayment({
+                        number: onlyDigits($id('cc-number').value), brand: b,
+                        installments: parseInt($id('chk-parcelas').value, 10) || 1
+                    });
+                }
+                const label = paymentLabel(method, cardInfo, total);
+                const { data, error } = await _supabase.from('orders').insert([{
+                    client: currentUser,
+                    address: `${endereco}, ${cidade} - CEP: ${cep}`,
+                    payment: label,
+                    total: total,
+                    payment_status: 'Aguardando Pagamento',
+                    delivery_status: 'Em Preparo'
+                }]).select();
+                if (error) throw error;
+
+                const order = (data && data[0]) || {};
+                cart = [];
+                updateCartCount();
+                closeCheckoutModal();   // também limpa os dados do cartão
+                showOrderResult(method, order, total, cardInfo, label);
+            } catch (err) {
+                console.error('Erro ao finalizar pedido:', err && err.message);
+                alert('Não foi possível finalizar o pedido:\n' + ((err && err.message) || 'tente novamente.'));
+            } finally {
+                orderSubmitting = false;
+                btn.disabled = false;
+                btn.innerHTML = btnHtml;
+            }
+        }
+
+        // ---------- Tela de resultado ----------
+        function showOrderResult(method, order, total, cardInfo, label) {
+            const body = $id('result-body');
+            const num = order.id ? `#${order.id}` : '';
+            const head = (icon, title, sub) => `<div class="big-icon"><i class="${icon}"></i></div><h2>${title}</h2><p>${sub}</p>`;
+            const line = (k, v) => `<div class="result-line"><span>${k}</span><b>${escHtml(String(v))}</b></div>`;
+            const btnOrders = `<button class="btn-primary" style="width:100%;" onclick="closeResultModal()">Acompanhar em Meus Pedidos</button>`;
+
+            if (method === 'card') {
+                body.innerHTML = head('fa-solid fa-circle-check', 'Pedido recebido!', 'Seu pagamento foi enviado para análise. O status será atualizado em Meus Pedidos.')
+                    + (num ? line('Pedido', num) : '') + line('Cartão', `${cardInfo.brand} final ${cardInfo.last4}`)
+                    + line('Parcelas', cardInfo.installments === 1 ? 'À vista' : `${cardInfo.installments}x de ${brl(total / cardInfo.installments)}`)
+                    + line('Total', brl(total)) + '<div style="margin-top:14px;">' + btnOrders + '</div>';
+            } else if (method === 'boleto') {
+                body.innerHTML = head('fa-solid fa-barcode', 'Pedido registrado!', 'O pedido é liberado após a compensação do boleto (até 2 dias úteis).')
+                    + (num ? line('Pedido', num) : '') + line('Forma de pagamento', 'Boleto Bancário') + line('Total', brl(total))
+                    + '<div style="margin-top:14px;">' + btnOrders + '</div>';
+            } else {
+                const txid = ('WT' + (order.id || Date.now())).replace(/[^A-Za-z0-9]/g, '').slice(0, 25);
+                const payload = STORE_PIX_KEY ? buildPixPayload(STORE_PIX_KEY, total, txid) : '';
+                body.innerHTML = head('fa-solid fa-qrcode', 'Pague com Pix', 'Escaneie o QR Code ou copie o código no app do seu banco.')
+                    + (num ? line('Pedido', num) : '') + line('Valor', brl(total))
+                    + (payload ? `
+                        <div id="pix-qr"></div>
+                        <textarea class="pix-code" id="pix-code" readonly aria-label="Pix copia e cola">${payload}</textarea>
+                        <button class="btn-primary" style="width:100%; margin-bottom:6px;" id="btn-copy-pix" onclick="copyPix()"><i class="fa-regular fa-copy"></i> Copiar código Pix</button>
+                        <ol class="pix-steps"><li>Abra o app do seu banco e escolha <b>Pix</b>.</li><li>Use <b>Ler QR Code</b> ou <b>Pix Copia e Cola</b>.</li><li>Confira o valor e confirme o pagamento.</li></ol>`
+                      : `<div class="pix-warn"><i class="fa-solid fa-triangle-exclamation"></i> A chave Pix da loja ainda não foi configurada (STORE_PIX_KEY no index.html). Seu pedido foi registrado; entre em contato para finalizar o pagamento.</div>`)
+                    + btnOrders;
+                if (payload) {
+                    try { new QRCode($id('pix-qr'), { text: payload, width: 200, height: 200, colorDark: '#000000', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M }); }
+                    catch (e) { $id('pix-qr').remove(); }
+                }
+            }
+            $id('result-modal').classList.add('open');
+        }
+        function closeResultModal() {
+            $id('result-modal').classList.remove('open');
+            $id('result-body').innerHTML = '';
+            switchSection('orders');
+        }
+        async function copyPix() {
+            const ta = $id('pix-code'), btn = $id('btn-copy-pix');
+            try { await navigator.clipboard.writeText(ta.value); }
+            catch (e) { ta.select(); try { document.execCommand('copy'); } catch (e2) {} }
+            btn.innerHTML = '<i class="fa-solid fa-check"></i> Código copiado!';
+            setTimeout(() => { if (btn) btn.innerHTML = '<i class="fa-regular fa-copy"></i> Copiar código Pix'; }, 2500);
+        }
     </script>
 </body>
 </html>
