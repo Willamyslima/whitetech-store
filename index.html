@@ -302,6 +302,40 @@
         }
         .ticket-reply small { display: block; color: var(--accent-gold); font-weight: 700; margin-bottom: 6px; }
     </style>
+    <style>
+        /* ===== Checkout em etapas + formas de pagamento ===== */
+        .chk-steps { display:flex; align-items:center; gap:10px; margin:18px 0 22px; }
+        .chk-step { display:flex; align-items:center; gap:8px; color:var(--text-muted); font-size:0.85rem; font-weight:600; }
+        .chk-step .dot { width:26px; height:26px; border-radius:50%; border:1px solid var(--border-color); display:flex; align-items:center; justify-content:center; font-size:0.8rem; }
+        .chk-step.active { color:var(--accent-gold); }
+        .chk-step.active .dot { background:var(--accent-gold); color:var(--bg-primary); border-color:var(--accent-gold); }
+        .chk-step.done .dot { border-color:var(--accent-gold); color:var(--accent-gold); }
+        .chk-line { flex:1; height:1px; background:var(--border-color); }
+        .chk-summary { display:flex; justify-content:space-between; align-items:center; background:var(--bg-card); border:1px solid var(--border-color); border-radius:8px; padding:12px 16px; margin-bottom:18px; font-size:0.9rem; }
+        .chk-summary strong { color:var(--accent-gold); font-size:1.15rem; }
+        .pay-options { display:grid; gap:10px; }
+        .pay-option { position:relative; display:flex; align-items:center; gap:14px; background:var(--bg-card); border:1px solid var(--border-color); border-radius:10px; padding:14px 16px; cursor:pointer; transition:var(--transition); }
+        .pay-option:hover { border-color:var(--accent-gold); }
+        .pay-option input { position:absolute; opacity:0; pointer-events:none; }
+        .pay-option .pay-icon { width:42px; height:42px; border-radius:8px; background:var(--bg-secondary); color:var(--accent-gold); display:flex; align-items:center; justify-content:center; font-size:1.2rem; flex-shrink:0; }
+        .pay-option .pay-text { flex:1; text-align:left; }
+        .pay-option .pay-text b { display:block; font-size:0.95rem; }
+        .pay-option .pay-text small { color:var(--text-muted); font-size:0.8rem; }
+        .pay-option .pay-check { width:20px; height:20px; border-radius:50%; border:2px solid var(--border-color); flex-shrink:0; }
+        .pay-option:has(input:checked) { border-color:var(--accent-gold); background:rgba(212,175,55,0.08); }
+        .pay-option:has(input:checked) .pay-check { border-color:var(--accent-gold); background:radial-gradient(var(--accent-gold) 45%, transparent 50%); }
+        .pay-option:has(input:focus-visible) { outline:2px solid var(--accent-gold); outline-offset:2px; }
+        .pay-detail { display:none; background:var(--bg-secondary); border:1px dashed var(--border-color); border-radius:8px; padding:14px 16px; font-size:0.88rem; color:var(--text-muted); text-align:left; }
+        .pay-detail.show { display:block; }
+        .pay-detail select { width:100%; margin-top:8px; }
+        .chk-actions { display:flex; gap:10px; margin-top:6px; }
+        .chk-actions .btn-primary { flex:1; }
+        .btn-ghost { background:transparent; color:var(--text-muted); border:1px solid var(--border-color); border-radius:6px; padding:12px 20px; cursor:pointer; font-family:'Montserrat',sans-serif; font-weight:600; }
+        .btn-ghost:hover { color:var(--accent-gold); border-color:var(--accent-gold); }
+        .login-hint { background:var(--bg-card); border:1px solid var(--border-color); border-radius:8px; padding:12px 14px; color:var(--text-muted); font-size:0.88rem; text-align:left; }
+        .login-hint a { color:var(--accent-gold); cursor:pointer; font-weight:600; }
+        input[readonly] { opacity:0.75; cursor:not-allowed; }
+    </style>
 </head>
 <body>
 
@@ -376,10 +410,11 @@
         <div class="contact-container">
             <h2 class="section-title">Fale <span class="cursive-det">Conosco</span></h2>
             <p class="section-subtitle">Nossa equipe de concierge tecnológico está pronta para atendê-lo.</p>
-            <form class="contact-form" onsubmit="handleContact(event)">
-                <div class="form-group"><label>Seu Nome</label><input type="text" required placeholder="Ex: Carlos Silva"></div>
-                <div class="form-group"><label>Seu E-mail</label><input type="email" required placeholder="exemplo@email.com"></div>
-                <div class="form-group"><label>Mensagem</label><textarea rows="5" required placeholder="Como podemos auxiliar?"></textarea></div>
+            <form class="contact-form" id="contact-form" onsubmit="handleContact(event)">
+                <div class="login-hint" id="contact-login-hint" style="display:none;"><i class="fa-solid fa-lock"></i> Para enviar uma mensagem e acompanhar a resposta, <a onclick="openLoginModal()">faça login</a>.</div>
+                <div class="form-group"><label>Seu Nome</label><input type="text" id="contact-name" required placeholder="Ex: Carlos Silva"></div>
+                <div class="form-group"><label>Seu E-mail</label><input type="email" id="contact-email" required placeholder="Faça login para preencher" readonly></div>
+                <div class="form-group"><label>Mensagem</label><textarea rows="5" id="contact-message" required placeholder="Como podemos auxiliar?"></textarea></div>
                 <button type="submit" class="btn-primary">Enviar Mensagem</button>
             </form>
         </div>
@@ -405,11 +440,8 @@
                 </div>
             </div>
 
-            <h3 style="margin-bottom: 15px;">Minhas <span class="cursive-det" style="font-size: 1.6rem;">solicitações</span></h3>
-            <div class="support-lookup">
-                <input type="email" id="support-email" placeholder="Digite o e-mail usado no contato">
-                <button class="btn-primary" onclick="loadSupportTickets(true)">Consultar</button>
-            </div>
+            <h3 style="margin-bottom: 5px;">Minhas <span class="cursive-det" style="font-size: 1.6rem;">solicitações</span></h3>
+            <p id="support-account" style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 20px;"></p>
             <div id="support-list"></div>
         </div>
     </section>
@@ -441,24 +473,60 @@
         <div class="modal-content">
             <button class="close-modal" onclick="closeCheckoutModal()">&times;</button>
             <h2>Dados de <span class="cursive-det">Entrega & Pagamento</span></h2>
-            <form onsubmit="finalizeOrder(event)" class="contact-form" style="margin-top: 15px;">
-                <div class="form-group">
-                    <label>Endereço Completo (Rua, Número, Bairro)</label>
-                    <input type="text" id="chk-endereco" required placeholder="Ex: Av. Atlântica, 1000 - Copacabana">
+            <div class="chk-steps">
+                <div class="chk-step active" id="chk-step-ind-1"><span class="dot">1</span> Entrega</div>
+                <div class="chk-line"></div>
+                <div class="chk-step" id="chk-step-ind-2"><span class="dot">2</span> Pagamento</div>
+            </div>
+            <div class="chk-summary"><span id="chk-items-count">0 item(ns)</span><strong id="chk-total">R$ 0,00</strong></div>
+            <form onsubmit="finalizeOrder(event)" class="contact-form" id="checkout-form" style="margin-top: 15px;">
+                <div id="chk-step-1" style="display:flex; flex-direction:column; gap:20px;">
+                    <div class="form-group">
+                        <label>Endereço Completo (Rua, Número, Bairro)</label>
+                        <input type="text" id="chk-endereco" required placeholder="Ex: Av. Atlântica, 1000 - Copacabana">
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div class="form-group"><label>Cidade</label><input type="text" id="chk-cidade" required placeholder="Macaé"></div>
+                        <div class="form-group"><label>CEP</label><input type="text" id="chk-cep" required placeholder="27910-000"></div>
+                    </div>
+                    <button type="button" class="btn-primary" onclick="checkoutGoStep(2)">Continuar para pagamento <i class="fa-solid fa-arrow-right"></i></button>
                 </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                    <div class="form-group"><label>Cidade</label><input type="text" id="chk-cidade" required placeholder="Macaé"></div>
-                    <div class="form-group"><label>CEP</label><input type="text" id="chk-cep" required placeholder="27910-000"></div>
+
+                <div id="chk-step-2" style="display:none; flex-direction:column; gap:14px;">
+                    <label style="font-weight:600; font-size:0.9rem; text-align:left;">Como você prefere pagar?</label>
+                    <div class="pay-options" role="radiogroup" aria-label="Forma de pagamento">
+                        <label class="pay-option">
+                            <input type="radio" name="chk-pay" value="card" checked onchange="updatePayDetail()">
+                            <span class="pay-icon"><i class="fa-solid fa-credit-card"></i></span>
+                            <span class="pay-text"><b>Cartão de Crédito</b><small>Parcele em até 12x</small></span>
+                            <span class="pay-check"></span>
+                        </label>
+                        <label class="pay-option">
+                            <input type="radio" name="chk-pay" value="pix" onchange="updatePayDetail()">
+                            <span class="pay-icon"><i class="fa-solid fa-qrcode"></i></span>
+                            <span class="pay-text"><b>Pix</b><small>Aprovação instantânea</small></span>
+                            <span class="pay-check"></span>
+                        </label>
+                        <label class="pay-option">
+                            <input type="radio" name="chk-pay" value="boleto" onchange="updatePayDetail()">
+                            <span class="pay-icon"><i class="fa-solid fa-barcode"></i></span>
+                            <span class="pay-text"><b>Boleto Bancário</b><small>Compensação em até 2 dias úteis</small></span>
+                            <span class="pay-check"></span>
+                        </label>
+                    </div>
+
+                    <div class="pay-detail" id="pay-detail-card">
+                        Escolha o número de parcelas:
+                        <select id="chk-parcelas" onchange="updatePayDetail()"></select>
+                    </div>
+                    <div class="pay-detail" id="pay-detail-pix"><i class="fa-solid fa-bolt" style="color:var(--accent-gold);"></i> Após confirmar o pedido, o status será atualizado para aprovado assim que o Pix for identificado. Acompanhe em <b>Meus Pedidos</b>.</div>
+                    <div class="pay-detail" id="pay-detail-boleto"><i class="fa-solid fa-circle-info" style="color:var(--accent-gold);"></i> O pedido é liberado após a compensação do boleto (até 2 dias úteis). Acompanhe em <b>Meus Pedidos</b>.</div>
+
+                    <div class="chk-actions">
+                        <button type="button" class="btn-ghost" onclick="checkoutGoStep(1)"><i class="fa-solid fa-arrow-left"></i> Voltar</button>
+                        <button type="submit" class="btn-primary">Confirmar Pedido</button>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>Forma de Pagamento</label>
-                    <select id="chk-pagamento" required>
-                        <option value="Cartão de Crédito">Cartão de Crédito (Parcelado)</option>
-                        <option value="Pix">Pix (Aprovação Instantânea)</option>
-                        <option value="Boleto Bancário">Boleto Bancário</option>
-                    </select>
-                </div>
-                <button type="submit" class="btn-primary" style="margin-top: 10px;">Confirmar Pedido</button>
             </form>
         </div>
     </div>
@@ -500,6 +568,7 @@
             if (sectionId === 'orders') {
                 loadUserOrders();
             }
+            if (sectionId === 'contact') syncContactForm();
         }
 
         // ==================== CATÁLOGO ====================
@@ -594,6 +663,7 @@
             sessionStorage.setItem('whitetech_user', currentUser);
             document.getElementById('user-status-text').innerText = email.split('@')[0];
             closeLoginModal();
+            syncContactForm();
             alert('Login efetuado com sucesso!');
         }
 
@@ -606,7 +676,54 @@
                 return;
             }
             closeCartModal();
+            resetCheckout();
             document.getElementById('checkout-modal').classList.add('open');
+        }
+
+        // ---------- Checkout em etapas ----------
+        function cartTotal() { return cart.reduce((sum, i) => sum + (i.price * i.qty), 0); }
+        function brl(v) { return 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+        function resetCheckout() {
+            const total = cartTotal();
+            const qty = cart.reduce((n, i) => n + i.qty, 0);
+            document.getElementById('chk-items-count').innerText = qty + (qty === 1 ? ' item' : ' itens');
+            document.getElementById('chk-total').innerText = brl(total);
+            const sel = document.getElementById('chk-parcelas');
+            sel.innerHTML = '';
+            for (let n = 1; n <= 12; n++) {
+                const o = document.createElement('option');
+                o.value = n;
+                o.textContent = n === 1 ? `1x de ${brl(total)} (à vista)` : `${n}x de ${brl(total / n)}`;
+                sel.appendChild(o);
+            }
+            document.querySelector('input[name="chk-pay"][value="card"]').checked = true;
+            updatePayDetail();
+            checkoutGoStep(1, true);
+        }
+
+        function checkoutGoStep(n, skipValidation) {
+            if (n === 2 && !skipValidation) {
+                const fields = ['chk-endereco', 'chk-cidade', 'chk-cep'].map(id => document.getElementById(id));
+                for (const f of fields) { if (!f.reportValidity()) return; }
+            }
+            document.getElementById('chk-step-1').style.display = n === 1 ? 'flex' : 'none';
+            document.getElementById('chk-step-2').style.display = n === 2 ? 'flex' : 'none';
+            document.getElementById('chk-step-ind-1').className = 'chk-step ' + (n === 1 ? 'active' : 'done');
+            document.getElementById('chk-step-ind-2').className = 'chk-step ' + (n === 2 ? 'active' : '');
+        }
+
+        function selectedPayment() {
+            const v = document.querySelector('input[name="chk-pay"]:checked').value;
+            if (v === 'pix') return 'Pix';
+            if (v === 'boleto') return 'Boleto Bancário';
+            const n = parseInt(document.getElementById('chk-parcelas').value, 10) || 1;
+            return n === 1 ? 'Cartão de Crédito (à vista)' : `Cartão de Crédito (${n}x de ${brl(cartTotal() / n)})`;
+        }
+
+        function updatePayDetail() {
+            const v = document.querySelector('input[name="chk-pay"]:checked').value;
+            ['card', 'pix', 'boleto'].forEach(k => document.getElementById('pay-detail-' + k).classList.toggle('show', k === v));
         }
 
         // ==================== FINALIZAR PEDIDO ====================
@@ -616,7 +733,7 @@
             const endereco = document.getElementById('chk-endereco').value.trim();
             const cidade = document.getElementById('chk-cidade').value.trim();
             const cep = document.getElementById('chk-cep').value.trim();
-            const pagamento = document.getElementById('chk-pagamento').value;
+            const pagamento = selectedPayment();
 
             const total = cart.reduce((sum, i) => sum + (i.price * i.qty), 0);
             const orderData = {
@@ -646,10 +763,39 @@
             switchSection('orders');
         }
 
-        function handleContact(e) {
+        // Preenche o e-mail do "Fale Conosco" com o login atual (e bloqueia edição)
+        function syncContactForm() {
+            const email = document.getElementById('contact-email');
+            const hint = document.getElementById('contact-login-hint');
+            if (!email) return;
+            email.value = currentUser || '';
+            email.readOnly = true;
+            email.placeholder = currentUser ? '' : 'Faça login para preencher';
+            if (hint) hint.style.display = currentUser ? 'none' : 'block';
+        }
+
+        // Só o formulário "Fale Conosco" grava em "messages"
+        async function handleContact(e) {
             e.preventDefault();
-            alert('Mensagem enviada com sucesso! Retornaremos em breve.');
-            e.target.reset();
+            if (!currentUser) {
+                alert('Faça login para enviar sua mensagem.');
+                openLoginModal();
+                return;
+            }
+            const name = document.getElementById('contact-name').value.trim();
+            const message = document.getElementById('contact-message').value.trim();
+            if (!name || !message) return;
+
+            const { error } = await _supabase.from('messages').insert([{ name, email: currentUser, message, status: 'Novo' }]);
+            if (error) {
+                console.error('Erro ao salvar mensagem:', error);
+                alert('Não foi possível enviar sua mensagem:\n' + error.message);
+                return;
+            }
+            notifyAdminNewMessage();
+            alert('Mensagem enviada com sucesso! Acompanhe a resposta em "Atendimento".');
+            document.getElementById('contact-form').reset();
+            syncContactForm();
         }
 
         // ==================== ACOMPANHAMENTO DE PEDIDOS ====================
@@ -893,6 +1039,7 @@
                 currentUser = saved.toLowerCase().trim();
                 document.getElementById('user-status-text').innerText = saved.split('@')[0];
             }
+            syncContactForm();
         };
     </script>
     <script>
@@ -1512,27 +1659,6 @@
             try { if (messagesReady) messagesRT.send({ type: 'broadcast', event: 'new-message', payload: { at: Date.now() } }); } catch (e) {}
         }
 
-        // Captura o envio do formulário ANTES do handler original (que continua funcionando normalmente)
-        document.addEventListener('submit', async (ev) => {
-            const form = ev.target;
-            if (!form || !form.classList || !form.classList.contains('contact-form')) return;
-            const fields = form.querySelectorAll('input, textarea');
-            const name = (fields[0]?.value || '').trim();
-            const email = (fields[1]?.value || '').trim().toLowerCase();
-            const message = (fields[2]?.value || '').trim();
-            if (!name || !email || !message) return;
-
-            const { error } = await _supabase.from('messages').insert([{ name, email, message, status: 'Novo' }]);
-            if (error) {
-                console.error('Erro ao salvar mensagem:', error);
-                alert('Não foi possível registrar sua mensagem no atendimento:\n' + error.message);
-                return;
-            }
-            const emailInput = document.getElementById('support-email');
-            if (emailInput && !emailInput.value) emailInput.value = email;
-            notifyAdminNewMessage();
-        }, true);
-
         // ---------- 3) ATENDIMENTO AO CLIENTE ----------
         let supportCache = {};
         let supportFirstLoad = true;
@@ -1540,35 +1666,43 @@
 
         function supportActive() {
             const s = document.getElementById('atendimento');
-            return s && s.classList.contains('active') && supportEmail;
+            return s && s.classList.contains('active') && currentUser;
         }
         function escHtml(s) {
             return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
         }
 
-        async function loadSupportTickets(manual = false) {
+        async function loadSupportTickets() {
             const list = document.getElementById('support-list');
-            const input = document.getElementById('support-email');
-            const typed = (input.value || '').trim().toLowerCase();
-            if (typed && typed !== supportEmail) { supportEmail = typed; supportCache = {}; supportFirstLoad = true; }
-            if (!supportEmail) {
-                if (manual) list.innerHTML = `<p style="color: var(--text-muted); text-align:center;">Informe seu e-mail para consultar suas solicitações.</p>`;
+            const acc = document.getElementById('support-account');
+
+            if (!currentUser) {
+                if (acc) acc.innerText = '';
+                list.innerHTML = `
+                    <div class="empty-orders">
+                        <i class="fa-solid fa-user-lock"></i>
+                        <h3 style="font-size: 1.5rem; margin-bottom: 10px;">Acesso Restrito</h3>
+                        <p>Faça login para ver suas solicitações.</p>
+                        <button class="btn-primary" style="margin-top: 20px;" onclick="openLoginModal()">Fazer Login</button>
+                    </div>`;
                 return;
             }
+            if (currentUser !== supportEmail) { supportEmail = currentUser; supportCache = {}; supportFirstLoad = true; }
+            if (acc) acc.innerHTML = `Exibindo apenas as solicitações da conta <strong style="color: var(--accent-gold);">${escHtml(currentUser)}</strong>.`;
 
-            const { data, error } = await _supabase.from('messages').select('*').order('created_at', { ascending: false });
+            const { data, error } = await _supabase.from('messages').select('*').eq('email', currentUser).order('created_at', { ascending: false });
             if (error) {
                 list.innerHTML = `<p style="color: var(--danger); text-align:center;">Erro ao carregar solicitações: ${escHtml(error.message)}</p>`;
                 return;
             }
-            const tickets = (data || []).filter(m => (m.email || '').toLowerCase().trim() === supportEmail);
+            const tickets = (data || []).filter(m => (m.email || '').toLowerCase().trim() === currentUser);
 
             if (tickets.length === 0) {
                 list.innerHTML = `
                     <div class="empty-orders">
                         <i class="fa-solid fa-comments"></i>
                         <h3 style="font-size: 1.5rem; margin-bottom: 10px;">Nenhuma solicitação encontrada</h3>
-                        <p>Não há mensagens enviadas com <strong style="color: var(--accent-gold);">${escHtml(supportEmail)}</strong>.</p>
+                        <p>Você ainda não enviou nenhuma mensagem pelo "Fale Conosco".</p>
                     </div>`;
                 return;
             }
@@ -1607,8 +1741,6 @@
 
         // Ao entrar na aba "Atendimento": preenche o e-mail do usuário logado e carrega
         document.getElementById('link-atendimento').addEventListener('click', () => {
-            const input = document.getElementById('support-email');
-            if (!input.value && typeof currentUser !== 'undefined' && currentUser) input.value = currentUser;
             loadSupportTickets();
         });
         // Atualização automática enquanto a aba está aberta
