@@ -544,7 +544,9 @@
                 tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#ff6b6b;">Erro ao carregar mensagens: ${escHtml(error.message)}<br><small>Verifique se a tabela "messages" foi criada no Supabase (veja o SQL de instalação).</small></td></tr>`;
                 return;
             }
-            const msgs = data || [];
+            // Apenas mensagens do "Fale Conosco" (e-mail válido); ignora registros antigos gerados por engano
+            const isEmail = v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((v || '').trim());
+            const msgs = (data || []).filter(m => isEmail(m.email));
             document.getElementById('total-messages-new').innerText = msgs.filter(m => !m.reply).length;
 
             if (msgs.length === 0) {
